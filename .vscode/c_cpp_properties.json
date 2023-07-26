@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "include/eosiolib/contracts/",
+                "include/eosiolib/core/",
+                "include/",
+                "/usr/local/include"
+            ],
+            "defines": [
+                "uint128_t=__uint128_t",
+                "int128_t=__int128_t"
+            ],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c11",
+            "cppStandard": "gnu++14",
+            "intelliSenseMode": "linux-gcc-x64",
+            "configurationProvider": "ms-vscode.cmake-tools"
+        }
+    ],
+    "version": 4
+}
