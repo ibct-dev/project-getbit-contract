@@ -2,6 +2,8 @@
     "cmake.sourceDirectory": "${workspaceFolder}/hello",
     "C_Cpp.errorSquiggles": "disabled",
     "files.associations": {
-        "string": "cpp"
-    }
+        "string": "cpp",
+        "locale": "cpp"
+    },
+    "cSpell.words": ["byissuer", "getbit"]
 }
