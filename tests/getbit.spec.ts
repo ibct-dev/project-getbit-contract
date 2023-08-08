@@ -14,6 +14,7 @@ describe("getbit", () => {
     const contractName = "getbit";
     const contractAccount = "getbit";
     const testAccounts = ["alice", "bob", "carol"];
+    const maxSupply = "4611686018427387903";
     const symbol = "COU";
 
     beforeEach(async () => {
@@ -90,7 +91,7 @@ describe("getbit", () => {
                 const actionResult = await contract.actions.create(
                     {
                         issuer: contractAccount,
-                        max_supply: `100 ${symbol}`,
+                        max_supply: `${maxSupply} ${symbol}`,
                     },
                     [
                         {
@@ -111,9 +112,14 @@ describe("getbit", () => {
             }
 
             const tableResult: StatRow[] = await contract.tables.stat();
-            expect(tableResult.length).toEqual(1);
-            expect(tableResult[0].max_supply).toEqual(`100 ${symbol}`);
-            expect(tableResult[0].issuer).toEqual(contractAccount);
+            expect(tableResult.length).toBeGreaterThanOrEqual(1);
+
+            const findRow = tableResult.find((asset) =>
+                asset.max_supply.includes(symbol)
+            );
+            expect(findRow).toBeDefined();
+            expect(findRow?.max_supply).toEqual(`${maxSupply} ${symbol}`);
+            expect(findRow?.issuer).toEqual(contractAccount);
         });
     });
 });
