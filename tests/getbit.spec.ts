@@ -7,6 +7,10 @@ interface StatRow {
     max_supply: string;
 }
 
+interface AccountRow {
+    balance: string;
+}
+
 describe("getbit", () => {
     let blockchain: Blockchain;
     let contract: Account;
@@ -16,6 +20,8 @@ describe("getbit", () => {
     const testAccounts = ["alice", "bob", "carol"];
     const maxSupply = "4611686018427387903";
     const symbol = "COU";
+
+    const transferTest = [1000, 10000, 100000];
 
     beforeEach(async () => {
         blockchain = new Blockchain({
@@ -91,7 +97,7 @@ describe("getbit", () => {
                 const actionResult = await contract.actions.create(
                     {
                         issuer: contractAccount,
-                        max_supply: `${maxSupply} ${symbol}`,
+                        max_supply: `0 ${symbol}`,
                     },
                     [
                         {
@@ -120,6 +126,123 @@ describe("getbit", () => {
             expect(findRow).toBeDefined();
             expect(findRow?.max_supply).toEqual(`${maxSupply} ${symbol}`);
             expect(findRow?.issuer).toEqual(contractAccount);
+        });
+
+        testAccounts.forEach((account) => {
+            it(`should open account for ${account}`, async () => {
+                try {
+                    const actionResult = await contract.actions.open(
+                        {
+                            owner: account,
+                            symbol: `0,${symbol}`,
+                        },
+                        [
+                            {
+                                actor: contractAccount,
+                                permission: "active",
+                            },
+                        ]
+                    );
+                    expect(actionResult).toHaveProperty("transaction_id");
+                } catch (error) {
+                    if (error instanceof Error) {
+                        if (!error.message.includes("Symbol already exists")) {
+                            throw `${error}: with ${contractAccount}`;
+                        }
+                    } else {
+                        throw error;
+                    }
+                }
+
+                const accountResult: AccountRow[] =
+                    await contract.tables.account({
+                        scope: account,
+                    });
+                expect(accountResult[0].balance).toEqual(`0 ${symbol}`);
+            });
+        });
+
+        it(`should issue ${maxSupply} ${symbol} coupons (MAX) to ${contractAccount}`, async () => {
+            try {
+                const actionResult = await contract.actions.issue(
+                    {
+                        to: contractAccount,
+                        quantity: `${maxSupply} ${symbol}`,
+                        memo: "issue test",
+                    },
+                    [
+                        {
+                            actor: contractAccount,
+                            permission: "active",
+                        },
+                    ]
+                );
+                expect(actionResult).toHaveProperty("transaction_id");
+            } catch (error) {
+                if (error instanceof Error) {
+                    if (
+                        !error.message.includes(
+                            "Quantity exceeds available supply"
+                        )
+                    ) {
+                        throw `${error}: with ${contractAccount}`;
+                    }
+                } else {
+                    throw error;
+                }
+            }
+
+            const tableResult: StatRow[] = await contract.tables.stat();
+            expect(tableResult.length).toBeGreaterThanOrEqual(1);
+
+            const findRow = tableResult.find((asset) =>
+                asset.max_supply.includes(symbol)
+            );
+            expect(findRow).toBeDefined();
+            expect(findRow?.issuer).toEqual(contractAccount);
+            expect(findRow?.max_supply).toEqual(`${maxSupply} ${symbol}`);
+            expect(findRow?.supply).toEqual(findRow?.max_supply);
+        });
+
+        testAccounts.forEach((account, index) => {
+            it(`should transfer ${transferTest[index]} ${symbol} coupons from ${contractAccount} to ${account}`, async () => {
+                const beforeAccountResult: AccountRow[] =
+                    await contract.tables.account({
+                        scope: account,
+                    });
+                const beforeBalance =
+                    +beforeAccountResult[0].balance.split(" ")[0];
+
+                try {
+                    const actionResult = await contract.actions.transfer(
+                        {
+                            from: contractAccount,
+                            to: account,
+                            quantity: `${transferTest[index]} ${symbol}`,
+                            memo: "transfer test",
+                        },
+                        [
+                            {
+                                actor: contractAccount,
+                                permission: "active",
+                            },
+                        ]
+                    );
+                    expect(actionResult).toHaveProperty("transaction_id");
+                } catch (error) {
+                    throw error;
+                }
+
+                const nextAccountResult: AccountRow[] =
+                    await contract.tables.account({
+                        scope: account,
+                    });
+                const nextBalance = +nextAccountResult[0].balance.split(" ")[0];
+
+                expect(nextBalance - beforeBalance).toEqual(
+                    transferTest[index]
+                );
+            });
         });
     });
 });
