@@ -56,7 +56,7 @@ describe("getbit", () => {
             );
         });
 
-        it(`should create a contract account: ${contractAccount}, and set contract: ${contractName}`, async () => {
+        it(`should create a contract account: ${contractAccount}`, async () => {
             try {
                 const account = await blockchain.createAccount(contractAccount);
                 expect(account.accountName).toEqual(contractAccount);
