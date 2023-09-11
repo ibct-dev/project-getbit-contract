@@ -99,25 +99,87 @@ namespace eosio {
         }
     }
 
+    ACTION getbit::biddingstart(const symbol &symbol, const uint64_t &type,
+                                const uint128_t &uuid, const string &prize,
+                                const string &public_key) {
+        require_auth(get_self());
+
+        check(type == getbit::AuctionType::TENDER_TEN || type == getbit::AuctionType::MEGA_TENDER,
+              "Unknown auction type");
+
+        stats      stat_table(get_self(), get_self().value);
+        const auto existing_stat = stat_table.find(symbol.code().raw());
+        check(existing_stat != stat_table.end(),
+              "Symbol does not exist, create before ");
+
+        auctions auction_table(get_self(), get_self().value);
+        auction_table.emplace(get_self(), [&](auction &a) {
+            a.id         = auction_table.available_primary_key();
+            a.symbol     = symbol;
+            a.uuid       = uuid;
+            a.type       = type;
+            a.status     = 0;
+            a.prize      = prize;
+            a.public_key = public_key;
+        });
+    }
+
+    ACTION getbit::biddingend(const uint64_t &id) {
+        require_auth(get_self());
+
+        auctions   auction_table(get_self(), get_self().value);
+        const auto existing_auction = auction_table.find(id);
+        check(existing_auction != auction_table.end(),
+              "The auction does not exist");
+        check(existing_auction->status == getbit::AuctionStatus::BIDDING,
+              "The auction was already ended");
+
+        auction_table.modify(existing_auction, get_self(), [&](auction &a) {
+            a.status = getbit::AuctionStatus::WINNER_CALCULATION;
+        });
+    }
+
+    ACTION getbit::selectwinner(const uint64_t &id, const name &winner,
+                                const string &private_key) {
+        require_auth(get_self());
+
+        auctions   auction_table(get_self(), get_self().value);
+        const auto existing_auction = auction_table.find(id);
+        check(existing_auction != auction_table.end(),
+              "The auction does not exist");
+        check(existing_auction->status == getbit::AuctionStatus::WINNER_CALCULATION,
+              "The auction is not yet ended");
+
+        auction_table.erase(existing_auction);
+    }
+
     void getbit::add_balance(const name &owner, const asset &value) {
-        accounts   to_account(get_self(), owner.value);
-        const auto to = to_account.find(value.symbol.code().raw());
-        if (to == to_account.end()) {
-            to_account.emplace(get_self(), [&](auto &a) { a.balance = value; });
+        accounts   account_table(get_self(), owner.value);
+        const auto to = account_table.find(value.symbol.code().raw());
+        if (to == account_table.end()) {
+            account_table.emplace(get_self(), [&](auto &a) { a.balance = value; });
         } else {
-            to_account.modify(to, get_self(),
-                              [&](auto &a) { a.balance += value; });
+            account_table.modify(to, get_self(),
+                                 [&](auto &a) { a.balance += value; });
         }
     }
 
     void getbit::sub_balance(const name &owner, const asset &value) {
-        accounts from_account(get_self(), owner.value);
+        accounts account_table(get_self(), owner.value);
 
         const auto &from
-            = from_account.get(value.symbol.code().raw(), "Balance not found");
+            = account_table.get(value.symbol.code().raw(), "Balance not found");
         check(from.balance.amount >= value.amount, "Overdrawn balance");
 
-        from_account.modify(from, get_self(),
-                            [&](auto &a) { a.balance -= value; });
+        account_table.modify(from, get_self(),
+                             [&](auto &a) { a.balance -= value; });
+    }
+
+    asset getbit::get_balance(const name &owner, const symbol_code &symbol_code) {
+        accounts account_table(get_self(), owner.value);
+
+        const auto &owner_account
+            = account_table.get(symbol_code.raw(), "Balance not found");
+        return owner_account.balance;
     }
 }   // namespace eosio

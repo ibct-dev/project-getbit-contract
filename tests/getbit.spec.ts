@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { Account } from "../library/account";
 import { Blockchain } from "../library/blockchain";
 
@@ -11,6 +12,16 @@ interface AccountRow {
     balance: string;
 }
 
+interface AuctionRow {
+    id: number;
+    uuid: string;
+    symbol: string;
+    type: number;
+    status: number;
+    prize: string;
+    public_key: string;
+}
+
 describe("getbit", () => {
     let blockchain: Blockchain;
     let contract: Account;
@@ -22,6 +33,18 @@ describe("getbit", () => {
     const symbol = "COU";
 
     const transferTest = [1000, 10000, 100000];
+
+    const auctionTest = [
+        {
+            symbol,
+            type: 0,
+            uuid: BigInt("0x" + randomUUID().replace(/-/g, "")),
+            prize: "100 USDT",
+            publicKey: "public",
+            winner: testAccounts[0],
+            privateKey: "private",
+        },
+    ];
 
     beforeEach(async () => {
         blockchain = new Blockchain({
@@ -243,6 +266,144 @@ describe("getbit", () => {
                     transferTest[index]
                 );
             });
+        });
+    });
+
+    describe("auction", () => {
+        it(`1st auction starts`, async () => {
+            const test = auctionTest[0];
+            const beforeTable: AuctionRow[] = await contract.tables.auction({
+                scope: contractAccount,
+            });
+
+            try {
+                const actionResult = await contract.actions.biddingstart(
+                    {
+                        symbol: `0,${test.symbol}`,
+                        type: test.type,
+                        uuid: test.uuid,
+                        prize: test.prize,
+                        public_key: test.publicKey,
+                    },
+                    [
+                        {
+                            actor: contractAccount,
+                            permission: "active",
+                        },
+                    ]
+                );
+                expect(actionResult).toHaveProperty("transaction_id");
+            } catch (error) {
+                throw error;
+            }
+
+            const afterTable: AuctionRow[] = await contract.tables.auction({
+                scope: contractAccount,
+            });
+            expect(beforeTable.length + 1).toEqual(afterTable.length);
+
+            const auctions: AuctionRow[] = await contract.tables.auction({
+                scope: contractAccount,
+                index_position: 2,
+                key_type: "i128",
+                lower_bound: test.uuid.toString(),
+                upper_bound: test.uuid.toString(),
+            });
+            expect(auctions.length).toEqual(1);
+            expect(auctions[0].uuid.toString()).toEqual(test.uuid.toString());
+            expect(auctions[0].prize).toEqual(test.prize);
+            expect(auctions[0].status).toEqual(0);
+        });
+
+        it(`1st auction ends`, async () => {
+            const test = auctionTest[0];
+            const beforeAuctions: AuctionRow[] = await contract.tables.auction({
+                scope: contractAccount,
+                index_position: 2,
+                key_type: "i128",
+                lower_bound: test.uuid.toString(),
+                upper_bound: test.uuid.toString(),
+            });
+            expect(beforeAuctions.length).toEqual(1);
+            expect(beforeAuctions[0].uuid.toString()).toEqual(
+                test.uuid.toString()
+            );
+            expect(beforeAuctions[0].prize).toEqual(test.prize);
+            expect(beforeAuctions[0].status).toEqual(0);
+
+            try {
+                const actionResult = await contract.actions.biddingend(
+                    {
+                        id: beforeAuctions[0].id,
+                    },
+                    [
+                        {
+                            actor: contractAccount,
+                            permission: "active",
+                        },
+                    ]
+                );
+                expect(actionResult).toHaveProperty("transaction_id");
+            } catch (error) {
+                throw error;
+            }
+
+            const afterAuctions: AuctionRow[] = await contract.tables.auction({
+                scope: contractAccount,
+                index_position: 2,
+                key_type: "i128",
+                lower_bound: test.uuid.toString(),
+                upper_bound: test.uuid.toString(),
+            });
+            expect(afterAuctions.length).toEqual(1);
+            expect(afterAuctions[0].uuid.toString()).toEqual(
+                test.uuid.toString()
+            );
+            expect(afterAuctions[0].prize).toEqual(test.prize);
+            expect(afterAuctions[0].status).toEqual(1);
+        });
+
+        it(`1st auction winner selected`, async () => {
+            const test = auctionTest[0];
+            const auctions: AuctionRow[] = await contract.tables.auction({
+                scope: contractAccount,
+                index_position: 2,
+                key_type: "i128",
+                lower_bound: test.uuid.toString(),
+                upper_bound: test.uuid.toString(),
+            });
+            expect(auctions.length).toEqual(1);
+            expect(auctions[0].uuid.toString()).toEqual(test.uuid.toString());
+            expect(auctions[0].prize).toEqual(test.prize);
+            expect(auctions[0].status).toEqual(1);
+
+            try {
+                const actionResult = await contract.actions.selectwinner(
+                    {
+                        id: auctions[0].id,
+                        winner: test.winner,
+                        private_key: test.privateKey,
+                    },
+                    [
+                        {
+                            actor: contractAccount,
+                            permission: "active",
+                        },
+                    ]
+                );
+                expect(actionResult).toHaveProperty("transaction_id");
+            } catch (error) {
+                throw error;
+            }
+
+            const afterAuctions: AuctionRow[] = await contract.tables.auction({
+                scope: contractAccount,
+                index_position: 2,
+                key_type: "i128",
+                lower_bound: test.uuid.toString(),
+                upper_bound: test.uuid.toString(),
+            });
+            expect(afterAuctions.length).toEqual(0);
         });
     });
 });
