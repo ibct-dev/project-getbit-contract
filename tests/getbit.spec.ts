@@ -16,10 +16,20 @@ interface AuctionRow {
     id: number;
     uuid: string;
     symbol: string;
-    type: number;
-    status: number;
+    type: string;
+    status: string;
     prize: string;
     public_key: string;
+}
+
+enum AuctionType {
+    TENDER_TEN = "TENDER_TEN",
+    MEGA_TENDER = "MEGA_TENDER",
+}
+
+enum AuctionStatus {
+    BIDDING = "BIDDING",
+    WINNER_CALCULATION = "WINNER_CALCULATION",
 }
 
 describe("getbit", () => {
@@ -37,7 +47,7 @@ describe("getbit", () => {
     const auctionTest = [
         {
             symbol,
-            type: 0,
+            type: AuctionType.TENDER_TEN,
             uuid: BigInt("0x" + randomUUID().replace(/-/g, "")),
             prize: "100 USDT",
             publicKey: "public",
@@ -312,7 +322,7 @@ describe("getbit", () => {
             expect(auctions.length).toEqual(1);
             expect(auctions[0].uuid.toString()).toEqual(test.uuid.toString());
             expect(auctions[0].prize).toEqual(test.prize);
-            expect(auctions[0].status).toEqual(0);
+            expect(auctions[0].status).toEqual(AuctionStatus.BIDDING);
         });
 
         it(`1st auction ends`, async () => {
@@ -329,7 +339,7 @@ describe("getbit", () => {
                 test.uuid.toString()
             );
             expect(beforeAuctions[0].prize).toEqual(test.prize);
-            expect(beforeAuctions[0].status).toEqual(0);
+            expect(beforeAuctions[0].status).toEqual(AuctionStatus.BIDDING);
 
             try {
                 const actionResult = await contract.actions.biddingend(
@@ -360,7 +370,9 @@ describe("getbit", () => {
                 test.uuid.toString()
             );
             expect(afterAuctions[0].prize).toEqual(test.prize);
-            expect(afterAuctions[0].status).toEqual(1);
+            expect(afterAuctions[0].status).toEqual(
+                AuctionStatus.WINNER_CALCULATION
+            );
         });
 
         it(`1st auction winner selected`, async () => {
@@ -375,7 +387,9 @@ describe("getbit", () => {
             expect(auctions.length).toEqual(1);
             expect(auctions[0].uuid.toString()).toEqual(test.uuid.toString());
             expect(auctions[0].prize).toEqual(test.prize);
-            expect(auctions[0].status).toEqual(1);
+            expect(auctions[0].status).toEqual(
+                AuctionStatus.WINNER_CALCULATION
+            );
 
             try {
                 const actionResult = await contract.actions.selectwinner(

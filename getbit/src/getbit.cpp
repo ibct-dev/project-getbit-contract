@@ -99,12 +99,12 @@ namespace eosio {
         }
     }
 
-    ACTION getbit::biddingstart(const symbol &symbol, const uint64_t &type,
+    ACTION getbit::biddingstart(const symbol &symbol, const string &type,
                                 const uint128_t &uuid, const string &prize,
                                 const string &public_key) {
         require_auth(get_self());
 
-        check(type == getbit::AuctionType::TENDER_TEN || type == getbit::AuctionType::MEGA_TENDER,
+        check(type == getbit::AUCTION_TYPE_0 || type == getbit::AUCTION_TYPE_0,
               "Unknown auction type");
 
         stats      stat_table(get_self(), get_self().value);
@@ -118,7 +118,7 @@ namespace eosio {
             a.symbol     = symbol;
             a.uuid       = uuid;
             a.type       = type;
-            a.status     = 0;
+            a.status     = getbit::AUCTION_STATUS_0;
             a.prize      = prize;
             a.public_key = public_key;
         });
@@ -131,11 +131,11 @@ namespace eosio {
         const auto existing_auction = auction_table.find(id);
         check(existing_auction != auction_table.end(),
               "The auction does not exist");
-        check(existing_auction->status == getbit::AuctionStatus::BIDDING,
+        check(existing_auction->status == getbit::AUCTION_STATUS_0,
               "The auction was already ended");
 
         auction_table.modify(existing_auction, get_self(), [&](auction &a) {
-            a.status = getbit::AuctionStatus::WINNER_CALCULATION;
+            a.status = getbit::AUCTION_STATUS_1;
         });
     }
 
@@ -147,7 +147,7 @@ namespace eosio {
         const auto existing_auction = auction_table.find(id);
         check(existing_auction != auction_table.end(),
               "The auction does not exist");
-        check(existing_auction->status == getbit::AuctionStatus::WINNER_CALCULATION,
+        check(existing_auction->status == getbit::AUCTION_STATUS_1,
               "The auction is not yet ended");
 
         auction_table.erase(existing_auction);
