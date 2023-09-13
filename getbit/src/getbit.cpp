@@ -51,8 +51,7 @@ namespace eosio {
         stats      stat_table(get_self(), get_self().value);
         const auto existing_stat = stat_table.find(symbol.code().raw());
         check(existing_stat != stat_table.end(),
-              "Symbol does not exist, create before ");
-        check(symbol == (existing_stat->max_supply).symbol, "Symbol mismatch");
+              "Symbol does not exist, create before");
 
         require_recipient(from);
         require_recipient(to);
@@ -67,7 +66,7 @@ namespace eosio {
         stats      stat_table(get_self(), get_self().value);
         const auto existing_stat = stat_table.find(symbol.code().raw());
         check(existing_stat != stat_table.end(),
-              "Symbol does not exist, create before ");
+              "Symbol does not exist, create before");
 
         accounts   account_table(get_self(), owner.value);
         const auto existing_account = account_table.find(symbol.code().raw());
@@ -89,7 +88,7 @@ namespace eosio {
         stats      stat_table(get_self(), get_self().value);
         const auto existing_stat = stat_table.find(symbol.code().raw());
         check(existing_stat != stat_table.end(),
-              "Symbol does not exist, create before ");
+              "Symbol does not exist, create before");
 
         auctions auction_table(get_self(), get_self().value);
         auction_table.emplace(get_self(), [&](auction &a) {
@@ -101,6 +100,40 @@ namespace eosio {
             a.prize      = prize;
             a.public_key = public_key;
         });
+    }
+
+    ACTION getbit::bid(const name &bidder, const uint64_t &auction_id,
+                       const asset &quantity, const string &entries, const string &hash) {
+        require_auth(bidder);
+
+        check(quantity.is_valid(), "Invalid quantity");
+        check(quantity.amount > 0, "Quantity must be a positive integer");
+        const auto symbol = quantity.symbol;
+        check(symbol.is_valid(), "Invalid symbol");
+        check(symbol.precision() == 0, "Precision must be a zero");
+
+        stats      stat_table(get_self(), get_self().value);
+        const auto existing_stat = stat_table.find(symbol.code().raw());
+        check(existing_stat != stat_table.end(),
+              "Symbol does not exist, create before");
+
+        const asset balance = get_balance(bidder, symbol.code());
+        check(balance.amount >= quantity.amount, "Not enough balance");
+
+        auctions   auction_table(get_self(), get_self().value);
+        const auto existing_auction = auction_table.find(auction_id);
+        check(existing_auction != auction_table.end(),
+              "The auction does not exist");
+
+        check(existing_auction->symbol == symbol, "The symbol not the same");
+        check(existing_auction->status == getbit::AUCTION_STATUS_0,
+              "The auction was already ended");
+
+        require_recipient(get_self());
+        require_recipient(bidder);
+
+        sub_balance(bidder, quantity);
+        add_balance(get_self(), quantity);
     }
 
     ACTION getbit::biddingend(const uint64_t &id) {
@@ -159,8 +192,8 @@ namespace eosio {
     asset getbit::get_balance(const name &owner, const symbol_code &symbol_code) {
         accounts account_table(get_self(), owner.value);
 
-        const auto &owner_account
-            = account_table.get(symbol_code.raw(), "Balance not found");
+        const auto &owner_account = account_table.get(
+            symbol_code.raw(), "Balance account not opened");
         return owner_account.balance;
     }
 }   // namespace eosio
