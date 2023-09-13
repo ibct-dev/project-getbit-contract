@@ -28,7 +28,14 @@
         "set": "cpp",
         "string_view": "cpp",
         "unordered_map": "cpp",
-        "__string": "cpp"
+        "__string": "cpp",
+        "iosfwd": "cpp"
     },
-    "cSpell.words": ["byissuer", "getbit"]
+    "cSpell.words": [
+        "biddingend",
+        "biddingstart",
+        "byissuer",
+        "getbit",
+        "selectwinner"
+    ]
 }

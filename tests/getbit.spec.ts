@@ -1,14 +1,33 @@
+import { randomUUID } from "crypto";
 import { Account } from "../library/account";
 import { Blockchain } from "../library/blockchain";
 
 interface StatRow {
-    issuer: string;
-    supply: string;
     max_supply: string;
 }
 
 interface AccountRow {
     balance: string;
+}
+
+interface AuctionRow {
+    id: number;
+    uuid: string;
+    symbol: string;
+    type: string;
+    status: string;
+    prize: string;
+    public_key: string;
+}
+
+enum AuctionType {
+    TENDER_TEN = "TENDER_TEN",
+    MEGA_TENDER = "MEGA_TENDER",
+}
+
+enum AuctionStatus {
+    BIDDING = "BIDDING",
+    WINNER_CALCULATION = "WINNER_CALCULATION",
 }
 
 describe("getbit", () => {
@@ -21,7 +40,28 @@ describe("getbit", () => {
     const maxSupply = "4611686018427387903";
     const symbol = "COU";
 
-    const transferTest = [1000, 10000, 100000];
+    const chargeTest = [1000, 10000, 100000];
+
+    const auctionTest = [
+        {
+            symbol,
+            type: AuctionType.TENDER_TEN,
+            uuid: BigInt("0x" + randomUUID().replace(/-/g, "")),
+            prize: "100 USDT",
+            publicKey: "publickey",
+            privateKey: "privatekey",
+            winner: testAccounts[0],
+        },
+        {
+            symbol,
+            type: AuctionType.MEGA_TENDER,
+            uuid: BigInt("0x" + randomUUID().replace(/-/g, "")),
+            prize: "100000 USDT",
+            publicKey: "publickey",
+            privateKey: "privatekey",
+            winner: testAccounts[1],
+        },
+    ];
 
     beforeEach(async () => {
         blockchain = new Blockchain({
@@ -92,12 +132,11 @@ describe("getbit", () => {
     });
 
     describe("coupon", () => {
-        it(`should create coupon symbol: ${symbol}`, async () => {
+        it(`should initiate coupon symbol: {${symbol}}`, async () => {
             try {
-                const actionResult = await contract.actions.create(
+                const actionResult = await contract.actions.init(
                     {
-                        issuer: contractAccount,
-                        max_supply: `0 ${symbol}`,
+                        max_supply: `${maxSupply} ${symbol}`,
                     },
                     [
                         {
@@ -125,11 +164,19 @@ describe("getbit", () => {
             );
             expect(findRow).toBeDefined();
             expect(findRow?.max_supply).toEqual(`${maxSupply} ${symbol}`);
-            expect(findRow?.issuer).toEqual(contractAccount);
+
+            const accountTableRows: AccountRow[] =
+                await contract.tables.account({
+                    scope: contractAccount,
+                });
+            expect(accountTableRows.length).toBeGreaterThanOrEqual(1);
+            expect(accountTableRows[0].balance).toEqual(
+                `${maxSupply} ${symbol}`
+            );
         });
 
         testAccounts.forEach((account) => {
-            it(`should open account for ${account}`, async () => {
+            it(`should open account for {${account}}`, async () => {
                 try {
                     const actionResult = await contract.actions.open(
                         {
@@ -162,50 +209,8 @@ describe("getbit", () => {
             });
         });
 
-        it(`should issue ${maxSupply} ${symbol} coupons (MAX) to ${contractAccount}`, async () => {
-            try {
-                const actionResult = await contract.actions.issue(
-                    {
-                        to: contractAccount,
-                        quantity: `${maxSupply} ${symbol}`,
-                        memo: "issue test",
-                    },
-                    [
-                        {
-                            actor: contractAccount,
-                            permission: "active",
-                        },
-                    ]
-                );
-                expect(actionResult).toHaveProperty("transaction_id");
-            } catch (error) {
-                if (error instanceof Error) {
-                    if (
-                        !error.message.includes(
-                            "Quantity exceeds available supply"
-                        )
-                    ) {
-                        throw `${error}: with ${contractAccount}`;
-                    }
-                } else {
-                    throw error;
-                }
-            }
-
-            const tableResult: StatRow[] = await contract.tables.stat();
-            expect(tableResult.length).toBeGreaterThanOrEqual(1);
-
-            const findRow = tableResult.find((asset) =>
-                asset.max_supply.includes(symbol)
-            );
-            expect(findRow).toBeDefined();
-            expect(findRow?.issuer).toEqual(contractAccount);
-            expect(findRow?.max_supply).toEqual(`${maxSupply} ${symbol}`);
-            expect(findRow?.supply).toEqual(findRow?.max_supply);
-        });
-
         testAccounts.forEach((account, index) => {
-            it(`should transfer ${transferTest[index]} ${symbol} coupons from ${contractAccount} to ${account}`, async () => {
+            it(`should charge {${chargeTest[index]} ${symbol}} coupons from {${contractAccount}} to {${account}}`, async () => {
                 const beforeAccountResult: AccountRow[] =
                     await contract.tables.account({
                         scope: account,
@@ -214,12 +219,12 @@ describe("getbit", () => {
                     +beforeAccountResult[0].balance.split(" ")[0];
 
                 try {
-                    const actionResult = await contract.actions.transfer(
+                    const actionResult = await contract.actions.charge(
                         {
                             from: contractAccount,
                             to: account,
-                            quantity: `${transferTest[index]} ${symbol}`,
-                            memo: "transfer test",
+                            quantity: `${chargeTest[index]} ${symbol}`,
+                            memo: "charge test",
                         },
                         [
                             {
@@ -239,9 +244,161 @@ describe("getbit", () => {
                     });
                 const nextBalance = +nextAccountResult[0].balance.split(" ")[0];
 
-                expect(nextBalance - beforeBalance).toEqual(
-                    transferTest[index]
+                expect(nextBalance - beforeBalance).toEqual(chargeTest[index]);
+            });
+        });
+    });
+
+    describe("auction", () => {
+        auctionTest.forEach((auction, index) => {
+            it(`should start auction #${index}`, async () => {
+                const beforeTable: AuctionRow[] = await contract.tables.auction(
+                    {
+                        scope: contractAccount,
+                    }
                 );
+
+                try {
+                    const actionResult = await contract.actions.biddingstart(
+                        {
+                            symbol: `0,${auction.symbol}`,
+                            type: auction.type,
+                            uuid: auction.uuid,
+                            prize: auction.prize,
+                            public_key: auction.publicKey,
+                        },
+                        [
+                            {
+                                actor: contractAccount,
+                                permission: "active",
+                            },
+                        ]
+                    );
+                    expect(actionResult).toHaveProperty("transaction_id");
+                } catch (error) {
+                    throw error;
+                }
+
+                const afterTable: AuctionRow[] = await contract.tables.auction({
+                    scope: contractAccount,
+                });
+                expect(beforeTable.length + 1).toEqual(afterTable.length);
+
+                const auctions: AuctionRow[] = await contract.tables.auction({
+                    scope: contractAccount,
+                    index_position: 2,
+                    key_type: "i128",
+                    lower_bound: auction.uuid.toString(),
+                    upper_bound: auction.uuid.toString(),
+                });
+                expect(auctions.length).toEqual(1);
+                expect(auctions[0].uuid.toString()).toEqual(
+                    auction.uuid.toString()
+                );
+                expect(auctions[0].prize).toEqual(auction.prize);
+                expect(auctions[0].status).toEqual(AuctionStatus.BIDDING);
+            });
+        });
+
+        auctionTest.forEach((auction, index) => {
+            it(`should end auction #${index}`, async () => {
+                const beforeAuctions: AuctionRow[] =
+                    await contract.tables.auction({
+                        scope: contractAccount,
+                        index_position: 2,
+                        key_type: "i128",
+                        lower_bound: auction.uuid.toString(),
+                        upper_bound: auction.uuid.toString(),
+                    });
+                expect(beforeAuctions.length).toEqual(1);
+                expect(beforeAuctions[0].uuid.toString()).toEqual(
+                    auction.uuid.toString()
+                );
+                expect(beforeAuctions[0].prize).toEqual(auction.prize);
+                expect(beforeAuctions[0].status).toEqual(AuctionStatus.BIDDING);
+
+                try {
+                    const actionResult = await contract.actions.biddingend(
+                        {
+                            id: beforeAuctions[0].id,
+                        },
+                        [
+                            {
+                                actor: contractAccount,
+                                permission: "active",
+                            },
+                        ]
+                    );
+                    expect(actionResult).toHaveProperty("transaction_id");
+                } catch (error) {
+                    throw error;
+                }
+
+                const afterAuctions: AuctionRow[] =
+                    await contract.tables.auction({
+                        scope: contractAccount,
+                        index_position: 2,
+                        key_type: "i128",
+                        lower_bound: auction.uuid.toString(),
+                        upper_bound: auction.uuid.toString(),
+                    });
+                expect(afterAuctions.length).toEqual(1);
+                expect(afterAuctions[0].uuid.toString()).toEqual(
+                    auction.uuid.toString()
+                );
+                expect(afterAuctions[0].prize).toEqual(auction.prize);
+                expect(afterAuctions[0].status).toEqual(
+                    AuctionStatus.WINNER_CALCULATION
+                );
+            });
+        });
+
+        auctionTest.forEach((auction, index) => {
+            it(`should select winner of auction #${index}`, async () => {
+                const auctions: AuctionRow[] = await contract.tables.auction({
+                    scope: contractAccount,
+                    index_position: 2,
+                    key_type: "i128",
+                    lower_bound: auction.uuid.toString(),
+                    upper_bound: auction.uuid.toString(),
+                });
+                expect(auctions.length).toEqual(1);
+                expect(auctions[0].uuid.toString()).toEqual(
+                    auction.uuid.toString()
+                );
+                expect(auctions[0].prize).toEqual(auction.prize);
+                expect(auctions[0].status).toEqual(
+                    AuctionStatus.WINNER_CALCULATION
+                );
+
+                try {
+                    const actionResult = await contract.actions.selectwinner(
+                        {
+                            id: auctions[0].id,
+                            winner: auction.winner,
+                            private_key: auction.privateKey,
+                        },
+                        [
+                            {
+                                actor: contractAccount,
+                                permission: "active",
+                            },
+                        ]
+                    );
+                    expect(actionResult).toHaveProperty("transaction_id");
+                } catch (error) {
+                    throw error;
+                }
+
+                const afterAuctions: AuctionRow[] =
+                    await contract.tables.auction({
+                        scope: contractAccount,
+                        index_position: 2,
+                        key_type: "i128",
+                        lower_bound: auction.uuid.toString(),
+                        upper_bound: auction.uuid.toString(),
+                    });
+                expect(afterAuctions.length).toEqual(0);
             });
         });
     });
