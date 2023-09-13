@@ -44,6 +44,7 @@ describe("getbit", () => {
 
     const auctionTest = [
         {
+            id: 0,
             symbol,
             type: AuctionType.TENDER_TEN,
             uuid: BigInt("0x" + randomUUID().replace(/-/g, "")),
@@ -53,6 +54,7 @@ describe("getbit", () => {
             winner: testAccounts[0],
         },
         {
+            id: 1,
             symbol,
             type: AuctionType.MEGA_TENDER,
             uuid: BigInt("0x" + randomUUID().replace(/-/g, "")),
@@ -60,6 +62,44 @@ describe("getbit", () => {
             publicKey: "publickey",
             privateKey: "privatekey",
             winner: testAccounts[1],
+        },
+    ];
+
+    const bidTest = [
+        {
+            bidder: testAccounts[0],
+            auction_id: auctionTest[0].id,
+            amount: 100,
+            entries: "entries",
+            hash: "hash",
+        },
+        {
+            bidder: testAccounts[0],
+            auction_id: auctionTest[1].id,
+            amount: 100,
+            entries: "entries",
+            hash: "hash",
+        },
+        {
+            bidder: testAccounts[1],
+            auction_id: auctionTest[0].id,
+            amount: 100,
+            entries: "entries",
+            hash: "hash",
+        },
+        {
+            bidder: testAccounts[1],
+            auction_id: auctionTest[1].id,
+            amount: 100,
+            entries: "entries",
+            hash: "hash",
+        },
+        {
+            bidder: testAccounts[2],
+            auction_id: auctionTest[0].id,
+            amount: 100,
+            entries: "entries",
+            hash: "hash",
         },
     ];
 
@@ -300,6 +340,31 @@ describe("getbit", () => {
             });
         });
 
+        bidTest.forEach((bidding, index) => {
+            it(`should bid for auction #${bidding.auction_id} by bidder {${bidding.bidder}}`, async () => {
+                try {
+                    const actionResult = await contract.actions.bid(
+                        {
+                            bidder: bidding.bidder,
+                            auction_id: bidding.auction_id,
+                            quantity: `${bidding.amount} ${symbol}`,
+                            entries: "entries",
+                            hash: "hash",
+                        },
+                        [
+                            {
+                                actor: bidding.bidder,
+                                permission: "active",
+                            },
+                        ]
+                    );
+                    expect(actionResult).toHaveProperty("transaction_id");
+                } catch (error) {
+                    throw error;
+                }
+            });
+        });
+
         auctionTest.forEach((auction, index) => {
             it(`should end auction #${index}`, async () => {
                 const beforeAuctions: AuctionRow[] =
@@ -349,6 +414,30 @@ describe("getbit", () => {
                 expect(afterAuctions[0].prize).toEqual(auction.prize);
                 expect(afterAuctions[0].status).toEqual(
                     AuctionStatus.WINNER_CALCULATION
+                );
+            });
+        });
+
+        bidTest.slice(0, 2).forEach((bidding, index) => {
+            it(`should not bid for auction #${bidding.auction_id} ended`, async () => {
+                await expect(async () => {
+                    await contract.actions.bid(
+                        {
+                            bidder: bidding.bidder,
+                            auction_id: bidding.auction_id,
+                            quantity: `${bidding.amount} ${symbol}`,
+                            entries: "entries",
+                            hash: "hash",
+                        },
+                        [
+                            {
+                                actor: bidding.bidder,
+                                permission: "active",
+                            },
+                        ]
+                    );
+                }).rejects.toThrowError(
+                    "assertion failure with message: The auction was already ended"
                 );
             });
         });

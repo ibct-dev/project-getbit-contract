@@ -116,6 +116,18 @@ namespace eosio {
                             const string &prize, const string &public_key);
 
         /**
+         * @brief Bid for the auction.
+         *
+         * @param bidder - Bidder account (caller).
+         * @param auction_id - Identifier of auction.
+         * @param quantity - Quantity to bid.
+         * @param entries - Original data entries.
+         * @param hash - Hash of original data to check the integrity.
+         */
+        ACTION bid(const name &bidder, const uint64_t &auction_id,
+                   const asset &quantity, const string &entries, const string &hash);
+
+        /**
          * @brief End auction by ID.
          *
          * @param id - Identifier of auction.
@@ -137,6 +149,7 @@ namespace eosio {
         using biddingstart_action
             = eosio::action_wrapper<"biddingstart"_n, &getbit::biddingstart>;
         using biddingend_action = eosio::action_wrapper<"biddingend"_n, &getbit::biddingend>;
+        using bid_action = eosio::action_wrapper<"bid"_n, &getbit::bid>;
         using selectwinner_action
             = eosio::action_wrapper<"selectwinner"_n, &getbit::selectwinner>;
     };
