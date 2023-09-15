@@ -77,9 +77,8 @@ namespace eosio {
         }
     }
 
-    ACTION getbit::biddingstart(const symbol &symbol, const string &type,
-                                const uint128_t &uuid, const string &prize,
-                                const string &public_key) {
+    ACTION getbit::biddingstart(const uint64_t &id, const symbol &symbol, const string &type,
+                                const string &prize, const string &public_key) {
         require_auth(get_self());
 
         check(type == getbit::AUCTION_TYPE_0 || type == getbit::AUCTION_TYPE_1,
@@ -90,15 +89,21 @@ namespace eosio {
         check(existing_stat != stat_table.end(),
               "Symbol does not exist, create before");
 
-        auctions auction_table(get_self(), get_self().value);
+        auctions   auction_table(get_self(), get_self().value);
+        const auto existing_auction = auction_table.find(id);
+        check(existing_auction == auction_table.end(),
+              "The auction already exists for id");
         auction_table.emplace(get_self(), [&](auction &a) {
-            a.id         = auction_table.available_primary_key();
-            a.symbol     = symbol;
-            a.uuid       = uuid;
-            a.type       = type;
-            a.status     = getbit::AUCTION_STATUS_0;
-            a.prize      = prize;
-            a.public_key = public_key;
+            a.id            = id;
+            a.symbol        = symbol;
+            a.type          = type;
+            a.status        = getbit::AUCTION_STATUS_0;
+            a.prize         = prize;
+            a.public_key    = public_key;
+            a.winner        = get_self();
+            a.winner_number = "";
+            a.winner_txhash = "";
+            a.private_key   = "";
         });
     }
 
@@ -153,6 +158,7 @@ namespace eosio {
     }
 
     ACTION getbit::selectwinner(const uint64_t &id, const name &winner,
+                                const string &winner_number, const string &winner_txhash,
                                 const string &private_key) {
         require_auth(get_self());
 
@@ -162,9 +168,15 @@ namespace eosio {
               "The auction does not exist");
 
         check(existing_auction->status == getbit::AUCTION_STATUS_1,
-              "The auction is not yet ended");
+              "The auction is not in calculation");
 
-        auction_table.erase(existing_auction);
+        auction_table.modify(existing_auction, get_self(), [&](auction &a) {
+            a.status        = getbit::AUCTION_STATUS_2;
+            a.winner        = winner;
+            a.winner_number = winner_number;
+            a.winner_txhash = winner_txhash;
+            a.private_key   = private_key;
+        });
     }
 
     void getbit::add_balance(const name &owner, const asset &value) {

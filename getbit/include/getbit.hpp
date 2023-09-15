@@ -25,25 +25,24 @@ namespace eosio {
         };
 
         TABLE auction {
-            uint64_t  id;
-            uint128_t uuid;     // To find after creation
-            symbol    symbol;   // Symbol of quantity to participate to this
-            string    type;   // Type of auction (e.g. TENDER_TEN, MEGA_TENDER)
+            uint64_t id;       // Round ID input
+            symbol   symbol;   // Symbol of quantity to participate to this
+            string   type;     // Type of auction (e.g. TENDER_TEN, MEGA_TENDER)
             string status;   // Status of auction (e.g. BIDDING, WINNER_CALCULATION)
-            string prize;        // Prize (anything)
-            string public_key;   // Public key for bidding encrypted
+            string prize;           // Prize (anything)
+            string public_key;      // Public key for bidding encrypted
+            name   winner;          // Winner account
+            string winner_number;   // Winner number chosen
+            string winner_txhash;   // Winner tx ID bid
+            string private_key;     // Private key for bidding decrypted
 
-            uint64_t  primary_key() const { return id; }
-            uint128_t get_uuid() const { return uuid; }
-            uint64_t  get_symbol() const { return symbol.code().raw(); }
+            uint64_t primary_key() const { return id; }
+            uint64_t get_symbol() const { return symbol.code().raw(); }
         };
 
         typedef eosio::multi_index<"account"_n, account> accounts;
         typedef eosio::multi_index<"stat"_n, stat>       stats;
-        typedef eosio::multi_index<
-            "auction"_n, auction, indexed_by<"byuuid"_n, const_mem_fun<auction, uint128_t, &auction::get_uuid>>,
-            indexed_by<"bysymbol"_n, const_mem_fun<auction, uint64_t, &auction::get_symbol>>>
-            auctions;
+        typedef eosio::multi_index<"auction"_n, auction> auctions;
 
         /**
          * @brief Add the balance of an account (if the balance does not exist, initiate the balance as zero).
@@ -77,6 +76,7 @@ namespace eosio {
         const string AUCTION_TYPE_1   = "MEGA_TENDER";
         const string AUCTION_STATUS_0 = "BIDDING";
         const string AUCTION_STATUS_1 = "WINNER_CALCULATION";
+        const string AUCTION_STATUS_2 = "WINNER_SELECTED";
 
         /**
          * @brief Initiate supply with a new symbol.
@@ -106,13 +106,13 @@ namespace eosio {
         /**
          * @brief Start auction.
          *
+         * @param id - Unique identifier of auction (to find).
          * @param symbol - Symbol of bidding quantity.
          * @param type - Type of auction.
-         * @param uuid - UUID to find auction created in the first time.
          * @param prize - Prize of auction (indication).
          * @param public_key - Public key used in bidding.
          */
-        ACTION biddingstart(const symbol &symbol, const string &type, const uint128_t &uuid,
+        ACTION biddingstart(const uint64_t &id, const symbol &symbol, const string &type,
                             const string &prize, const string &public_key);
 
         /**
@@ -139,9 +139,12 @@ namespace eosio {
          *
          * @param id - Identifier of auction.
          * @param winner - Winner account.
+         * @param winner_number - Winner number chosen by winner.
+         * @param winner_txhash - Transaction hash of bidding from winner.
          * @param private_key - Private key used in this auction (announcement).
          */
-        ACTION selectwinner(const uint64_t &id, const name &winner, const string &private_key);
+        ACTION selectwinner(const uint64_t &id, const name &winner, const string &winner_number,
+                            const string &winner_txhash, const string &private_key);
 
         using init_action = eosio::action_wrapper<"init"_n, &getbit::init>;
         using charge_action = eosio::action_wrapper<"charge"_n, &getbit::charge>;

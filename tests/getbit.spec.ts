@@ -12,12 +12,15 @@ interface AccountRow {
 
 interface AuctionRow {
     id: number;
-    uuid: string;
     symbol: string;
     type: string;
     status: string;
     prize: string;
     public_key: string;
+    winner: string;
+    winner_number: string;
+    winner_txhash: string;
+    private_key: string;
 }
 
 enum AuctionType {
@@ -28,6 +31,7 @@ enum AuctionType {
 enum AuctionStatus {
     BIDDING = "BIDDING",
     WINNER_CALCULATION = "WINNER_CALCULATION",
+    WINNER_SELECTED = "WINNER_SELECTED",
 }
 
 describe("getbit", () => {
@@ -36,32 +40,36 @@ describe("getbit", () => {
 
     const contractName = "getbit";
     const contractAccount = "getbit";
-    const testAccounts = ["alice", "bob", "carol"];
+    const testAccounts: string[] = ["alice", "bob", "carol"];
     const maxSupply = "4611686018427387903";
     const symbol = "COU";
 
-    const chargeTest = [1000, 10000, 100000];
+    const chargeTest: number[] = [1000, 10000, 100000];
 
-    const auctionTest = [
+    const auctionTest: AuctionRow[] = [
         {
             id: 0,
             symbol,
             type: AuctionType.TENDER_TEN,
-            uuid: BigInt("0x" + randomUUID().replace(/-/g, "")),
+            status: AuctionStatus.BIDDING,
             prize: "100 USDT",
-            publicKey: "publickey",
-            privateKey: "privatekey",
+            public_key: "publickey",
+            private_key: "privatekey",
             winner: testAccounts[0],
+            winner_number: "1234",
+            winner_txhash: "txhash",
         },
         {
             id: 1,
             symbol,
             type: AuctionType.MEGA_TENDER,
-            uuid: BigInt("0x" + randomUUID().replace(/-/g, "")),
+            status: AuctionStatus.BIDDING,
             prize: "100000 USDT",
-            publicKey: "publickey",
-            privateKey: "privatekey",
+            public_key: "publickey",
+            private_key: "privatekey",
             winner: testAccounts[1],
+            winner_number: "5678",
+            winner_txhash: "txhash",
         },
     ];
 
@@ -301,11 +309,11 @@ describe("getbit", () => {
                 try {
                     const actionResult = await contract.actions.biddingstart(
                         {
+                            id: auction.id,
                             symbol: `0,${auction.symbol}`,
                             type: auction.type,
-                            uuid: auction.uuid,
                             prize: auction.prize,
-                            public_key: auction.publicKey,
+                            public_key: auction.public_key,
                         },
                         [
                             {
@@ -326,17 +334,19 @@ describe("getbit", () => {
 
                 const auctions: AuctionRow[] = await contract.tables.auction({
                     scope: contractAccount,
-                    index_position: 2,
-                    key_type: "i128",
-                    lower_bound: auction.uuid.toString(),
-                    upper_bound: auction.uuid.toString(),
+                    index_position: 1,
+                    key_type: "i64",
+                    lower_bound: auction.id.toString(),
+                    upper_bound: auction.id.toString(),
                 });
                 expect(auctions.length).toEqual(1);
-                expect(auctions[0].uuid.toString()).toEqual(
-                    auction.uuid.toString()
-                );
-                expect(auctions[0].prize).toEqual(auction.prize);
+                expect(auctions[0].type).toEqual(auction.type);
                 expect(auctions[0].status).toEqual(AuctionStatus.BIDDING);
+                expect(auctions[0].prize).toEqual(auction.prize);
+                expect(auctions[0].public_key).toEqual(auction.public_key);
+                expect(auctions[0].winner).toEqual(contractAccount);
+                expect(auctions[0].winner_number).toEqual("");
+                expect(auctions[0].winner_txhash).toEqual("");
             });
         });
 
@@ -370,16 +380,12 @@ describe("getbit", () => {
                 const beforeAuctions: AuctionRow[] =
                     await contract.tables.auction({
                         scope: contractAccount,
-                        index_position: 2,
-                        key_type: "i128",
-                        lower_bound: auction.uuid.toString(),
-                        upper_bound: auction.uuid.toString(),
+                        index_position: 1,
+                        key_type: "i64",
+                        lower_bound: auction.id.toString(),
+                        upper_bound: auction.id.toString(),
                     });
                 expect(beforeAuctions.length).toEqual(1);
-                expect(beforeAuctions[0].uuid.toString()).toEqual(
-                    auction.uuid.toString()
-                );
-                expect(beforeAuctions[0].prize).toEqual(auction.prize);
                 expect(beforeAuctions[0].status).toEqual(AuctionStatus.BIDDING);
 
                 try {
@@ -402,16 +408,12 @@ describe("getbit", () => {
                 const afterAuctions: AuctionRow[] =
                     await contract.tables.auction({
                         scope: contractAccount,
-                        index_position: 2,
-                        key_type: "i128",
-                        lower_bound: auction.uuid.toString(),
-                        upper_bound: auction.uuid.toString(),
+                        index_position: 1,
+                        key_type: "i64",
+                        lower_bound: auction.id.toString(),
+                        upper_bound: auction.id.toString(),
                     });
                 expect(afterAuctions.length).toEqual(1);
-                expect(afterAuctions[0].uuid.toString()).toEqual(
-                    auction.uuid.toString()
-                );
-                expect(afterAuctions[0].prize).toEqual(auction.prize);
                 expect(afterAuctions[0].status).toEqual(
                     AuctionStatus.WINNER_CALCULATION
                 );
@@ -446,16 +448,12 @@ describe("getbit", () => {
             it(`should select winner of auction #${index}`, async () => {
                 const auctions: AuctionRow[] = await contract.tables.auction({
                     scope: contractAccount,
-                    index_position: 2,
-                    key_type: "i128",
-                    lower_bound: auction.uuid.toString(),
-                    upper_bound: auction.uuid.toString(),
+                    index_position: 1,
+                    key_type: "i64",
+                    lower_bound: auction.id.toString(),
+                    upper_bound: auction.id.toString(),
                 });
                 expect(auctions.length).toEqual(1);
-                expect(auctions[0].uuid.toString()).toEqual(
-                    auction.uuid.toString()
-                );
-                expect(auctions[0].prize).toEqual(auction.prize);
                 expect(auctions[0].status).toEqual(
                     AuctionStatus.WINNER_CALCULATION
                 );
@@ -465,7 +463,9 @@ describe("getbit", () => {
                         {
                             id: auctions[0].id,
                             winner: auction.winner,
-                            private_key: auction.privateKey,
+                            winner_number: auction.winner_number,
+                            winner_txhash: auction.winner_txhash,
+                            private_key: auction.private_key,
                         },
                         [
                             {
@@ -482,12 +482,15 @@ describe("getbit", () => {
                 const afterAuctions: AuctionRow[] =
                     await contract.tables.auction({
                         scope: contractAccount,
-                        index_position: 2,
-                        key_type: "i128",
-                        lower_bound: auction.uuid.toString(),
-                        upper_bound: auction.uuid.toString(),
+                        index_position: 1,
+                        key_type: "i64",
+                        lower_bound: auction.id.toString(),
+                        upper_bound: auction.id.toString(),
                     });
-                expect(afterAuctions.length).toEqual(0);
+                expect(afterAuctions.length).toEqual(1);
+                expect(afterAuctions[0].status).toEqual(
+                    AuctionStatus.WINNER_SELECTED
+                );
             });
         });
     });
