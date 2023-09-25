@@ -4,9 +4,7 @@ import {
     AccountRow,
     AuctionRow,
     AuctionStatus,
-    AuctionStatusNumber,
     AuctionType,
-    AuctionTypeNumber,
     StatRow,
 } from "./libs";
 
