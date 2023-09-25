@@ -35,7 +35,11 @@
         "biddingend",
         "biddingstart",
         "byissuer",
+        "bystatus",
+        "bytype",
         "getbit",
-        "selectwinner"
+        "printl",
+        "selectwinner",
+        "tparam"
     ]
 }

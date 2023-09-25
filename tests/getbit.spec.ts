@@ -1,38 +1,14 @@
-import { randomUUID } from "crypto";
 import { Account } from "../library/account";
 import { Blockchain } from "../library/blockchain";
-
-interface StatRow {
-    max_supply: string;
-}
-
-interface AccountRow {
-    balance: string;
-}
-
-interface AuctionRow {
-    id: number;
-    symbol: string;
-    type: string;
-    status: string;
-    prize: string;
-    public_key: string;
-    winner: string;
-    winner_number: string;
-    winner_txhash: string;
-    private_key: string;
-}
-
-enum AuctionType {
-    TENDER_TEN = "TENDER_TEN",
-    MEGA_TENDER = "MEGA_TENDER",
-}
-
-enum AuctionStatus {
-    BIDDING = "BIDDING",
-    WINNER_CALCULATION = "WINNER_CALCULATION",
-    WINNER_SELECTED = "WINNER_SELECTED",
-}
+import {
+    AccountRow,
+    AuctionRow,
+    AuctionStatus,
+    AuctionStatusNumber,
+    AuctionType,
+    AuctionTypeNumber,
+    StatRow,
+} from "./libs";
 
 describe("getbit", () => {
     let blockchain: Blockchain;
@@ -340,8 +316,12 @@ describe("getbit", () => {
                     upper_bound: auction.id.toString(),
                 });
                 expect(auctions.length).toEqual(1);
-                expect(auctions[0].type).toEqual(auction.type);
-                expect(auctions[0].status).toEqual(AuctionStatus.BIDDING);
+                expect(auctions[0].type).toEqual(
+                    Object.keys(AuctionType).indexOf(auction.type)
+                );
+                expect(auctions[0].status).toEqual(
+                    Object.keys(AuctionStatus).indexOf(AuctionStatus.BIDDING)
+                );
                 expect(auctions[0].prize).toEqual(auction.prize);
                 expect(auctions[0].public_key).toEqual(auction.public_key);
                 expect(auctions[0].winner).toEqual(contractAccount);
@@ -386,7 +366,9 @@ describe("getbit", () => {
                         upper_bound: auction.id.toString(),
                     });
                 expect(beforeAuctions.length).toEqual(1);
-                expect(beforeAuctions[0].status).toEqual(AuctionStatus.BIDDING);
+                expect(beforeAuctions[0].status).toEqual(
+                    Object.keys(AuctionStatus).indexOf(AuctionStatus.BIDDING)
+                );
 
                 try {
                     const actionResult = await contract.actions.biddingend(
@@ -415,7 +397,9 @@ describe("getbit", () => {
                     });
                 expect(afterAuctions.length).toEqual(1);
                 expect(afterAuctions[0].status).toEqual(
-                    AuctionStatus.WINNER_CALCULATION
+                    Object.keys(AuctionStatus).indexOf(
+                        AuctionStatus.WINNER_CALCULATION
+                    )
                 );
             });
         });
@@ -455,7 +439,9 @@ describe("getbit", () => {
                 });
                 expect(auctions.length).toEqual(1);
                 expect(auctions[0].status).toEqual(
-                    AuctionStatus.WINNER_CALCULATION
+                    Object.keys(AuctionStatus).indexOf(
+                        AuctionStatus.WINNER_CALCULATION
+                    )
                 );
 
                 try {
@@ -489,7 +475,9 @@ describe("getbit", () => {
                     });
                 expect(afterAuctions.length).toEqual(1);
                 expect(afterAuctions[0].status).toEqual(
-                    AuctionStatus.WINNER_SELECTED
+                    Object.keys(AuctionStatus).indexOf(
+                        AuctionStatus.WINNER_SELECTED
+                    )
                 );
             });
         });

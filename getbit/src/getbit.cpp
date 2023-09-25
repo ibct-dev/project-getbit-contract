@@ -96,8 +96,10 @@ namespace eosio {
         auction_table.emplace(get_self(), [&](auction &a) {
             a.id            = id;
             a.symbol        = symbol;
-            a.type          = type;
-            a.status        = getbit::AUCTION_STATUS_0;
+            a.type          = type == getbit::AUCTION_TYPE_0
+                                  ? getbit::AUCTION_TYPE_0_TENDER_TEN
+                                  : getbit::AUCTION_TYPE_1_MEGA_TENDER;
+            a.status        = getbit::AUCTION_STATUS_0_BIDDING;
             a.prize         = prize;
             a.public_key    = public_key;
             a.winner        = get_self();
@@ -131,7 +133,7 @@ namespace eosio {
               "The auction does not exist");
 
         check(existing_auction->symbol == symbol, "The symbol not the same");
-        check(existing_auction->status == getbit::AUCTION_STATUS_0,
+        check(existing_auction->status == getbit::AUCTION_STATUS_0_BIDDING,
               "The auction was already ended");
 
         require_recipient(get_self());
@@ -149,11 +151,11 @@ namespace eosio {
         check(existing_auction != auction_table.end(),
               "The auction does not exist");
 
-        check(existing_auction->status == getbit::AUCTION_STATUS_0,
+        check(existing_auction->status == getbit::AUCTION_STATUS_0_BIDDING,
               "The auction was already ended");
 
         auction_table.modify(existing_auction, get_self(), [&](auction &a) {
-            a.status = getbit::AUCTION_STATUS_1;
+            a.status = getbit::AUCTION_STATUS_1_WINNER_CALCULATION;
         });
     }
 
@@ -167,11 +169,11 @@ namespace eosio {
         check(existing_auction != auction_table.end(),
               "The auction does not exist");
 
-        check(existing_auction->status == getbit::AUCTION_STATUS_1,
+        check(existing_auction->status == getbit::AUCTION_STATUS_1_WINNER_CALCULATION,
               "The auction is not in calculation");
 
         auction_table.modify(existing_auction, get_self(), [&](auction &a) {
-            a.status        = getbit::AUCTION_STATUS_2;
+            a.status        = getbit::AUCTION_STATUS_2_WINNER_SELECTED;
             a.winner        = winner;
             a.winner_number = winner_number;
             a.winner_txhash = winner_txhash;

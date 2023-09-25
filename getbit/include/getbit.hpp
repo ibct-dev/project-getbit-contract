@@ -27,8 +27,10 @@ namespace eosio {
         TABLE auction {
             uint64_t id;       // Round ID input
             symbol   symbol;   // Symbol of quantity to participate to this
-            string   type;     // Type of auction (e.g. TENDER_TEN, MEGA_TENDER)
-            string status;   // Status of auction (e.g. BIDDING, WINNER_CALCULATION)
+            uint64_t  type;
+            uint64_t  status;
+            // string   type;     // Type of auction (e.g. TENDER_TEN, MEGA_TENDER)
+            // string status;   // Status of auction (e.g. BIDDING, WINNER_CALCULATION)
             string prize;           // Prize (anything)
             string public_key;      // Public key for bidding encrypted
             name   winner;          // Winner account
@@ -38,11 +40,16 @@ namespace eosio {
 
             uint64_t primary_key() const { return id; }
             uint64_t get_symbol() const { return symbol.code().raw(); }
+            uint64_t  get_type() const { return type; }
+            uint64_t  get_status() const { return status; }
         };
 
         typedef eosio::multi_index<"account"_n, account> accounts;
         typedef eosio::multi_index<"stat"_n, stat>       stats;
-        typedef eosio::multi_index<"auction"_n, auction> auctions;
+        typedef eosio::multi_index<
+            "auction"_n, auction, indexed_by<"bytype"_n, const_mem_fun<auction, uint64_t, &auction::get_type>>,
+            indexed_by<"bystatus"_n, const_mem_fun<auction, uint64_t, &auction::get_status>>>
+            auctions;
 
         /**
          * @brief Add the balance of an account (if the balance does not exist, initiate the balance as zero).
@@ -69,14 +76,33 @@ namespace eosio {
          */
         asset get_balance(const name &owner, const symbol_code &symbol_code);
 
+        // Clean the table
+        template <typename T> void clean_table(name self, uint64_t scope = 0) {
+            uint64_t s = scope ? scope : self.value;
+            T        db(self, s);
+            while (db.begin() != db.end()) {
+                auto itr = --db.end();
+                db.erase(itr);
+            }
+        };
+
       public:
         using contract::contract;
 
-        const string AUCTION_TYPE_0   = "TENDER_TEN";
-        const string AUCTION_TYPE_1   = "MEGA_TENDER";
-        const string AUCTION_STATUS_0 = "BIDDING";
-        const string AUCTION_STATUS_1 = "WINNER_CALCULATION";
-        const string AUCTION_STATUS_2 = "WINNER_SELECTED";
+        const string  AUCTION_TYPE_0                      = "TENDER_TEN";
+        const uint64_t AUCTION_TYPE_0_TENDER_TEN           = 0;
+        const string  AUCTION_TYPE_1                      = "MEGA_TENDER";
+        const uint64_t AUCTION_TYPE_1_MEGA_TENDER          = 1;
+        const uint64_t AUCTION_STATUS_0_BIDDING            = 0;
+        const uint64_t AUCTION_STATUS_1_WINNER_CALCULATION = 1;
+        const uint64_t AUCTION_STATUS_2_WINNER_SELECTED    = 2;
+
+        ACTION clear() {
+            require_auth(get_self());
+            printl("cleaning", 8);
+
+            clean_table<auctions>(get_self(), get_self().value);
+        }
 
         /**
          * @brief Initiate supply with a new symbol.
