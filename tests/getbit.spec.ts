@@ -481,5 +481,52 @@ describe("getbit", () => {
                 );
             });
         });
+
+        it(`should end and select winner of ${auctionTest.length} auctions`, async () => {
+            const existingTenderTen = await contract.tables.auction({
+                scope: contractAccount,
+                index_position: 2,
+                key_type: "i64",
+                lower_bound: Object.keys(AuctionType)
+                    .indexOf(AuctionType.TENDER_TEN)
+                    .toString(),
+                upper_bound: Object.keys(AuctionType)
+                    .indexOf(AuctionType.TENDER_TEN)
+                    .toString(),
+            });
+
+            const existingMegaTender = await contract.tables.auction({
+                scope: contractAccount,
+                index_position: 2,
+                key_type: "i64",
+                lower_bound: Object.keys(AuctionType)
+                    .indexOf(AuctionType.MEGA_TENDER)
+                    .toString(),
+                upper_bound: Object.keys(AuctionType)
+                    .indexOf(AuctionType.MEGA_TENDER)
+                    .toString(),
+            });
+
+            expect(
+                existingTenderTen.length + existingMegaTender.length
+            ).toBeGreaterThanOrEqual(auctionTest.length);
+
+            const existingWinnerSelectedAuctions =
+                await contract.tables.auction({
+                    scope: contractAccount,
+                    index_position: 3,
+                    key_type: "i64",
+                    lower_bound: Object.keys(AuctionStatus)
+                        .indexOf(AuctionStatus.WINNER_SELECTED)
+                        .toString(),
+                    upper_bound: Object.keys(AuctionStatus)
+                        .indexOf(AuctionStatus.WINNER_SELECTED)
+                        .toString(),
+                });
+
+            expect(
+                existingWinnerSelectedAuctions.length
+            ).toBeGreaterThanOrEqual(auctionTest.length);
+        });
     });
 });
