@@ -526,5 +526,24 @@ describe("getbit", () => {
                 existingWinnerSelectedAuctions.length
             ).toBeGreaterThanOrEqual(auctionTest.length);
         });
+
+        it(`should clean the auction table`, async () => {
+            try {
+                const actionResult = await contract.actions.clear({}, [
+                    {
+                        actor: contractAccount,
+                        permission: "active",
+                    },
+                ]);
+                expect(actionResult).toHaveProperty("transaction_id");
+            } catch (error) {
+                throw error;
+            }
+
+            const auctions: AuctionRow[] = await contract.tables.auction({
+                scope: contractAccount,
+            });
+            expect(auctions.length).toEqual(0);
+        });
     });
 });

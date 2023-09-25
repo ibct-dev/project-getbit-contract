@@ -27,8 +27,8 @@ namespace eosio {
         TABLE auction {
             uint64_t id;       // Round ID input
             symbol   symbol;   // Symbol of quantity to participate to this
-            uint64_t  type;
-            uint64_t  status;
+            uint64_t type;
+            uint64_t status;
             // string   type;     // Type of auction (e.g. TENDER_TEN, MEGA_TENDER)
             // string status;   // Status of auction (e.g. BIDDING, WINNER_CALCULATION)
             string prize;           // Prize (anything)
@@ -40,8 +40,8 @@ namespace eosio {
 
             uint64_t primary_key() const { return id; }
             uint64_t get_symbol() const { return symbol.code().raw(); }
-            uint64_t  get_type() const { return type; }
-            uint64_t  get_status() const { return status; }
+            uint64_t get_type() const { return type; }
+            uint64_t get_status() const { return status; }
         };
 
         typedef eosio::multi_index<"account"_n, account> accounts;
@@ -89,9 +89,9 @@ namespace eosio {
       public:
         using contract::contract;
 
-        const string  AUCTION_TYPE_0                      = "TENDER_TEN";
+        const string   AUCTION_TYPE_0                      = "TENDER_TEN";
         const uint64_t AUCTION_TYPE_0_TENDER_TEN           = 0;
-        const string  AUCTION_TYPE_1                      = "MEGA_TENDER";
+        const string   AUCTION_TYPE_1                      = "MEGA_TENDER";
         const uint64_t AUCTION_TYPE_1_MEGA_TENDER          = 1;
         const uint64_t AUCTION_STATUS_0_BIDDING            = 0;
         const uint64_t AUCTION_STATUS_1_WINNER_CALCULATION = 1;
