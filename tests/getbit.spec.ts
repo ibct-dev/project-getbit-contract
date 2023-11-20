@@ -16,7 +16,7 @@ describe("getbit", () => {
     const contractAccount = "getbit";
     const testAccounts: string[] = ["alice", "bob", "carol"];
     const maxSupply = "4611686018427387903";
-    const symbol = "COU";
+    const symbol = "GB";
 
     const chargeTest: number[] = [1000, 10000, 100000];
 
