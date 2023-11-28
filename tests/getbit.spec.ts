@@ -15,11 +15,10 @@ describe("getbit", () => {
     const contractName = "getbit";
     const contractAccount = "getbit";
     const testAccounts: string[] = ["alice", "bob", "carol"];
-    const maxSupply = "4611686018427387903";
+    const maxSupply = "4611686018427387903"; // EOSIO Supply 최대 발행량
     const symbol = "GB";
 
     const chargeTest: number[] = [1000, 10000, 100000];
-
     const auctionTest: AuctionRow[] = [
         {
             id: 0,
@@ -46,7 +45,6 @@ describe("getbit", () => {
             winner_txhash: "txhash",
         },
     ];
-
     const bidTest = [
         {
             bidder: testAccounts[0],
@@ -152,6 +150,11 @@ describe("getbit", () => {
             }
         });
     });
+
+    /**
+     * 아래서부터는 TEST를 위한 코드입니다.
+     * 만약 컨트랙트를 초기 상태로 배포하려면 아래 코드를 주석 처리하세요.
+     */
 
     describe("coupon", () => {
         it(`should initiate coupon symbol: {${symbol}}`, async () => {
