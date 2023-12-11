@@ -27,16 +27,16 @@ namespace eosio {
         TABLE auction {
             uint64_t id;       // Round ID input
             symbol   symbol;   // Symbol of quantity to participate to this
-            uint64_t type;
-            uint64_t status;
-            // string   type;     // Type of auction (e.g. TENDER_TEN, MEGA_TENDER)
-            // string status;   // Status of auction (e.g. BIDDING, WINNER_CALCULATION)
-            string prize;           // Prize (anything)
-            string public_key;      // Public key for bidding encrypted
-            name   winner;          // Winner account
-            string winner_number;   // Winner number chosen
-            string winner_txhash;   // Winner tx ID bid
-            string private_key;     // Private key for bidding decrypted
+            uint64_t type;   // Type of auction (e.g. TENDER_TEN (0), MEGA_TENDER (1))
+            uint64_t status;   // Status of auction (e.g. BIDDING (0), WINNER_CALCULATION (1), WINNER_SELECTED (2))
+            asset  biddings;   // The current bidding quantity
+            asset  biddings_limit;   // The maximum bidding quantity
+            string prize;            // Prize (anything)
+            string public_key;       // Public key for bidding encrypted
+            name   winner;           // Winner account
+            string winner_number;    // Winner number chosen
+            string winner_txhash;    // Winner tx ID bid
+            string private_key;      // Private key for bidding decrypted
 
             uint64_t primary_key() const { return id; }
             uint64_t get_symbol() const { return symbol.code().raw(); }
@@ -137,9 +137,11 @@ namespace eosio {
          * @param type - Type of auction.
          * @param prize - Prize of auction (indication).
          * @param public_key - Public key used in bidding.
+         * @param biddings_limit - The limitation of biddings (maximum).
          */
-        ACTION biddingstart(const uint64_t &id, const symbol &symbol, const string &type,
-                            const string &prize, const string &public_key);
+        ACTION biddingstart(const uint64_t &id, const symbol &symbol,
+                            const string &type, const string &prize,
+                            const string &public_key, const asset &biddings_limit);
 
         /**
          * @brief Bid for the auction.

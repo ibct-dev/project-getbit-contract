@@ -18,7 +18,7 @@ describe("getbit", () => {
     const maxSupply = "4611686018427387903"; // EOSIO Supply 최대 발행량
     const symbol = "GB";
 
-    const chargeTest: number[] = [1000, 10000, 100000];
+    const chargeTest: number[] = [1000, 10000, 1000000];
     const auctionTest: AuctionRow[] = [
         {
             id: 0,
@@ -31,6 +31,8 @@ describe("getbit", () => {
             winner: testAccounts[0],
             winner_number: "1234",
             winner_txhash: "txhash",
+            biddings: `0 ${symbol}`,
+            biddings_limit: `0 ${symbol}`,
         },
         {
             id: 1,
@@ -43,6 +45,8 @@ describe("getbit", () => {
             winner: testAccounts[1],
             winner_number: "5678",
             winner_txhash: "txhash",
+            biddings: `0 ${symbol}`,
+            biddings_limit: `100000 ${symbol}`,
         },
     ];
     const bidTest = [
@@ -82,6 +86,13 @@ describe("getbit", () => {
             hash: "hash",
         },
     ];
+    const exceededBidTest = {
+        bidder: testAccounts[2],
+        auction_id: auctionTest[1].id,
+        amount: 100000,
+        entries: "entries",
+        hash: "hash",
+    };
 
     beforeEach(async () => {
         blockchain = new Blockchain({
@@ -291,6 +302,7 @@ describe("getbit", () => {
                             type: auction.type,
                             prize: auction.prize,
                             public_key: auction.public_key,
+                            biddings_limit: auction.biddings_limit,
                         },
                         [
                             {
@@ -328,6 +340,10 @@ describe("getbit", () => {
                 expect(auctions[0].winner).toEqual(contractAccount);
                 expect(auctions[0].winner_number).toEqual("");
                 expect(auctions[0].winner_txhash).toEqual("");
+                expect(auctions[0].biddings).toEqual(`0 ${symbol}`);
+                expect(auctions[0].biddings_limit).toEqual(
+                    auction.biddings_limit
+                );
             });
         });
 
@@ -356,6 +372,28 @@ describe("getbit", () => {
             });
         });
 
+        it(`should not exceeding bid for auction #${auctionTest[1].id}`, async () => {
+            await expect(async () => {
+                await contract.actions.bid(
+                    {
+                        bidder: exceededBidTest.bidder,
+                        auction_id: exceededBidTest.auction_id,
+                        quantity: `${exceededBidTest.amount} ${symbol}`,
+                        entries: "entries",
+                        hash: "hash",
+                    },
+                    [
+                        {
+                            actor: exceededBidTest.bidder,
+                            permission: "active",
+                        },
+                    ]
+                );
+            }).rejects.toThrowError(
+                "assertion failure with message: Biddings limit exceeded"
+            );
+        });
+
         auctionTest.forEach((auction, index) => {
             it(`should end auction #${index}`, async () => {
                 const beforeAuctions: AuctionRow[] =
@@ -370,6 +408,15 @@ describe("getbit", () => {
                 expect(beforeAuctions[0].status).toEqual(
                     Object.keys(AuctionStatus).indexOf(AuctionStatus.BIDDING)
                 );
+
+                if (beforeAuctions[0].biddings !== `0 ${symbol}`) {
+                    const totalBiddingsAmount = bidTest
+                        .filter((bid) => bid.auction_id === auction.id)
+                        .reduce((sum, bid) => sum + +bid.amount, 0);
+                    expect(beforeAuctions[0].biddings).toEqual(
+                        `${totalBiddingsAmount} ${symbol}`
+                    );
+                }
 
                 try {
                     const actionResult = await contract.actions.biddingend(

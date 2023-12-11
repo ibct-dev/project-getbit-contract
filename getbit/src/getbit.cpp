@@ -77,8 +77,9 @@ namespace eosio {
         }
     }
 
-    ACTION getbit::biddingstart(const uint64_t &id, const symbol &symbol, const string &type,
-                                const string &prize, const string &public_key) {
+    ACTION getbit::biddingstart(const uint64_t &id, const symbol &symbol,
+                                const string &type, const string &prize,
+                                const string &public_key, const asset &biddings_limit) {
         require_auth(get_self());
 
         check(type == getbit::AUCTION_TYPE_0 || type == getbit::AUCTION_TYPE_1,
@@ -89,23 +90,31 @@ namespace eosio {
         check(existing_stat != stat_table.end(),
               "Symbol does not exist, create before");
 
+        const auto biddings_symbol = biddings_limit.symbol;
+        check(biddings_symbol.is_valid(), "Invalid symbol for biddings");
+        check(biddings_symbol.precision() == 0, "Precision must be a zero");
+        check(biddings_symbol.code().raw() == symbol.code().raw(),
+              "Mismatched symbols");
+
         auctions   auction_table(get_self(), get_self().value);
         const auto existing_auction = auction_table.find(id);
         check(existing_auction == auction_table.end(),
               "The auction already exists for id");
         auction_table.emplace(get_self(), [&](auction &a) {
-            a.id            = id;
-            a.symbol        = symbol;
-            a.type          = type == getbit::AUCTION_TYPE_0
-                                  ? getbit::AUCTION_TYPE_0_TENDER_TEN
-                                  : getbit::AUCTION_TYPE_1_MEGA_TENDER;
-            a.status        = getbit::AUCTION_STATUS_0_BIDDING;
-            a.prize         = prize;
-            a.public_key    = public_key;
-            a.winner        = get_self();
-            a.winner_number = "";
-            a.winner_txhash = "";
-            a.private_key   = "";
+            a.id             = id;
+            a.symbol         = symbol;
+            a.type           = type == getbit::AUCTION_TYPE_0
+                                   ? getbit::AUCTION_TYPE_0_TENDER_TEN
+                                   : getbit::AUCTION_TYPE_1_MEGA_TENDER;
+            a.status         = getbit::AUCTION_STATUS_0_BIDDING;
+            a.biddings       = asset { 0, symbol };
+            a.biddings_limit = biddings_limit;
+            a.prize          = prize;
+            a.public_key     = public_key;
+            a.winner         = get_self();
+            a.winner_number  = "";
+            a.winner_txhash  = "";
+            a.private_key    = "";
         });
     }
 
@@ -115,6 +124,7 @@ namespace eosio {
 
         check(quantity.is_valid(), "Invalid quantity");
         check(quantity.amount > 0, "Quantity must be a positive integer");
+
         const auto symbol = quantity.symbol;
         check(symbol.is_valid(), "Invalid symbol");
         check(symbol.precision() == 0, "Precision must be a zero");
@@ -135,6 +145,15 @@ namespace eosio {
         check(existing_auction->symbol == symbol, "The symbol not the same");
         check(existing_auction->status == getbit::AUCTION_STATUS_0_BIDDING,
               "The auction was already ended");
+
+        if (existing_auction->biddings_limit.amount > 0) {
+            check(existing_auction->biddings.amount + quantity.amount
+                      <= existing_auction->biddings_limit.amount,
+                  "Biddings limit exceeded");
+
+            auction_table.modify(existing_auction, get_self(),
+                                 [&](auction &a) { a.biddings += quantity; });
+        }
 
         require_recipient(get_self());
         require_recipient(bidder);

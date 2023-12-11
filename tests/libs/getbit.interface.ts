@@ -17,4 +17,6 @@ export interface AuctionRow {
     winner_number: string;
     winner_txhash: string;
     private_key: string;
+    biddings: string;
+    biddings_limit: string;
 }
