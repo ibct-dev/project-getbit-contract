@@ -229,4 +229,23 @@ namespace eosio {
             symbol_code.raw(), "Balance account not opened");
         return owner_account.balance;
     }
+
+    void getbit::update() {
+        require_auth(get_self());
+        printl("start", 5);
+
+        auctions auction_table(get_self(), get_self().value);
+        // while (auction_table.begin() != auction_table.end()) {
+        //     auto itr = --auction_table.end();
+        //     auction_table.modify(itr, get_self(), [&](auction &a) {
+        //         a.biddings       = asset { 0, itr->symbol };
+        //         a.biddings_limit = asset { 0, itr->symbol };
+        //     });
+        // }
+        while (auction_table.begin() != auction_table.end()) {
+            auto itr = --auction_table.end();
+            auction_table.erase(itr);
+        }
+        printl("done", 4);
+    }
 }   // namespace eosio

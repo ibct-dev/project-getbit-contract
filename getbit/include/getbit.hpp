@@ -33,10 +33,10 @@ namespace eosio {
             asset  biddings_limit;   // The maximum bidding quantity
             string prize;            // Prize (anything)
             string public_key;       // Public key for bidding encrypted
+            string private_key;      // Private key for bidding decrypted
             name   winner;           // Winner account
             string winner_number;    // Winner number chosen
             string winner_txhash;    // Winner tx ID bid
-            string private_key;      // Private key for bidding decrypted
 
             uint64_t primary_key() const { return id; }
             uint64_t get_symbol() const { return symbol.code().raw(); }
